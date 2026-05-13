@@ -14,3 +14,6 @@ POLYMARKET_API_BASE = "https://data-api.polymarket.com"
 
 # Polling interval in seconds
 POLL_INTERVAL = 60
+
+# Web App URL (replace with your server IP or domain)
+WEBAPP_URL = os.getenv("WEBAPP_URL", "http://YOUR_SERVER_IP:8000")

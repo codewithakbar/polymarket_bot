@@ -2,13 +2,15 @@ import asyncio
 import json
 import logging
 import os
+import threading
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
+from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery, WebAppInfo
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
-from .config import TELEGRAM_BOT_TOKEN, POLL_INTERVAL, TARGET_WALLET
+from .config import TELEGRAM_BOT_TOKEN, POLL_INTERVAL, TARGET_WALLET, WEBAPP_URL
 from .polymarket_api import get_user_positions, get_user_activity, get_leaderboard, format_position, format_activity
+from .web_server import run_server
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -48,12 +50,13 @@ async def cmd_start(message: Message):
     builder.button(text="📊 Pozitsiyalar")
     builder.button(text="📝 Faollik")
     builder.button(text="🏆 Liderlar")
-    builder.adjust(2, 1)
+    builder.button(text="🌐 Dashboard", web_app=WebAppInfo(url=WEBAPP_URL))
+    builder.adjust(2, 2)
     
     await message.answer(
         f"Salom! Men Polymarket botiman.\n"
         f"Men @bossoskil1 va boshqa top treyderlarni kuzatishga yordam beraman.\n"
-        f"Quyidagi tugmalardan birini tanlang:",
+        f"Dashboard orqali ma'lumotlarni chiroyli ko'rishingiz mumkin.",
         reply_markup=builder.as_markup(resize_keyboard=True)
     )
 
@@ -83,7 +86,6 @@ async def show_leaderboard(message: Message):
         wallet = leader.get("proxyWallet")
         
         text += f"{rank}. <b>{name}</b> - ${float(pnl):,.2f}\n"
-        # Create buttons for each leader
         keyboard.append([InlineKeyboardButton(text=f"👀 {name} ni ko'rish", callback_data=f"user:{wallet}")])
     
     markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -92,20 +94,12 @@ async def show_leaderboard(message: Message):
 @dp.callback_query(F.data.startswith("user:"))
 async def process_user_selection(callback: CallbackQuery):
     wallet = callback.data.split(":")[1]
-    
-    keyboard = [
-        [
-            InlineKeyboardButton(text="📊 Pozitsiyalar", callback_data=f"pos:{wallet}"),
-            InlineKeyboardButton(text="📝 Faollik", callback_data=f"act:{wallet}")
-        ]
-    ]
+    keyboard = [[
+        InlineKeyboardButton(text="📊 Pozitsiyalar", callback_data=f"pos:{wallet}"),
+        InlineKeyboardButton(text="📝 Faollik", callback_data=f"act:{wallet}")
+    ]]
     markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
-    
-    await callback.message.edit_text(
-        f"Tanlangan hamyon: `{wallet}`\nNimalarni ko'rmoqchisiz?",
-        reply_markup=markup,
-        parse_mode="HTML"
-    )
+    await callback.message.edit_text(f"Tanlangan hamyon: `{wallet}`\nNimalarni ko'rmoqchisiz?", reply_markup=markup, parse_mode="HTML")
     await callback.answer()
 
 @dp.callback_query(F.data.startswith("pos:"))
@@ -125,11 +119,9 @@ async def show_user_positions(message: Message, wallet: str):
     if not positions:
         await message.answer(f"`{wallet}` uchun hozircha ochiq pozitsiyalar yo'q.", parse_mode="HTML")
         return
-    
     text = f"🚀 <b>Joriy pozitsiyalar ({wallet[:10]}...):</b>\n\n"
     for pos in positions[:10]:
         text += format_position(pos) + "\n---\n"
-    
     await message.answer(text, parse_mode="HTML")
 
 async def show_user_activity(message: Message, wallet: str):
@@ -137,69 +129,49 @@ async def show_user_activity(message: Message, wallet: str):
     if not activity:
         await message.answer(f"`{wallet}` uchun hozircha faollik topilmadi.", parse_mode="HTML")
         return
-    
     await message.answer(f"🕒 <b>Oxirgi faollik ({wallet[:10]}...):</b>", parse_mode="HTML")
-    
-    for act in activity[:5]: # Oxirgi 5 ta harakat
+    for act in activity[:5]:
         text = format_activity(act)
         slug = act.get("slug")
         reply_markup = None
-        
         if slug:
             link_kb = [[InlineKeyboardButton(text="🔗 Bozorni ko'rish", url=f"https://polymarket.com/event/{slug}")]]
             reply_markup = InlineKeyboardMarkup(inline_keyboard=link_kb)
-            
         await message.answer(text, parse_mode="HTML", reply_markup=reply_markup)
 
 async def polling_task():
-    """
-    Background task to poll for new activities.
-    """
     logger.info("Polling task started...")
     while True:
         try:
             activities = await get_user_activity()
             if activities:
-                # Assuming the API returns most recent first
-                # We identify unique activity by timestamp + title + type
                 new_found = False
-                for act in reversed(activities): # Check oldest first to notify in order
-                    # Create a unique key
+                for act in reversed(activities):
                     act_id = f"{act.get('timestamp')}_{act.get('title')}_{act.get('type')}"
-                    
                     if act_id not in state["seen_activities"]:
                         state["seen_activities"].append(act_id)
                         new_found = True
-                        
-                        # Notify all subscribers
                         msg = "🔔 <b>Yangi bitim aniqlandi!</b>\n\n" + format_activity(act)
-                        
-                        # Add link button if slug is available
                         slug = act.get("slug")
                         reply_markup = None
                         if slug:
-                            link_kb = [
-                                [InlineKeyboardButton(text="🔗 Bozorni ko'rish", url=f"https://polymarket.com/event/{slug}")]
-                            ]
+                            link_kb = [[InlineKeyboardButton(text="🔗 Bozorni ko'rish", url=f"https://polymarket.com/event/{slug}")]]
                             reply_markup = InlineKeyboardMarkup(inline_keyboard=link_kb)
-                            
                         for chat_id in state["subscribers"]:
                             try:
                                 await bot.send_message(chat_id, msg, parse_mode="HTML", reply_markup=reply_markup)
                             except Exception as e:
                                 logger.error(f"Failed to notify {chat_id}: {e}")
-                
                 if new_found:
-                    # Keep history manageable
                     state["seen_activities"] = state["seen_activities"][-100:]
                     save_state(state)
-                    
         except Exception as e:
             logger.error(f"Error in polling task: {e}")
-            
         await asyncio.sleep(POLL_INTERVAL)
 
 async def main():
+    # Start the web server in a separate thread
+    threading.Thread(target=run_server, daemon=True).start()
     # Start the polling task in the background
     asyncio.create_task(polling_task())
     # Start the bot

@@ -3,3 +3,5 @@ httpx
 pydantic-settings
 python-dotenv
 asyncio
+fastapi
+uvicorn
