@@ -138,11 +138,18 @@ async def show_user_activity(message: Message, wallet: str):
         await message.answer(f"`{wallet}` uchun hozircha faollik topilmadi.", parse_mode="HTML")
         return
     
-    text = f"🕒 <b>Oxirgi faollik ({wallet[:10]}...):</b>\n\n"
-    for act in activity[:5]:
-        text += format_activity(act) + "\n---\n"
+    await message.answer(f"🕒 <b>Oxirgi faollik ({wallet[:10]}...):</b>", parse_mode="HTML")
     
-    await message.answer(text, parse_mode="HTML")
+    for act in activity[:5]: # Oxirgi 5 ta harakat
+        text = format_activity(act)
+        slug = act.get("slug")
+        reply_markup = None
+        
+        if slug:
+            link_kb = [[InlineKeyboardButton(text="🔗 Bozorni ko'rish", url=f"https://polymarket.com/event/{slug}")]]
+            reply_markup = InlineKeyboardMarkup(inline_keyboard=link_kb)
+            
+        await message.answer(text, parse_mode="HTML", reply_markup=reply_markup)
 
 async def polling_task():
     """
@@ -166,9 +173,19 @@ async def polling_task():
                         
                         # Notify all subscribers
                         msg = "🔔 <b>Yangi bitim aniqlandi!</b>\n\n" + format_activity(act)
+                        
+                        # Add link button if slug is available
+                        slug = act.get("slug")
+                        reply_markup = None
+                        if slug:
+                            link_kb = [
+                                [InlineKeyboardButton(text="🔗 Bozorni ko'rish", url=f"https://polymarket.com/event/{slug}")]
+                            ]
+                            reply_markup = InlineKeyboardMarkup(inline_keyboard=link_kb)
+                            
                         for chat_id in state["subscribers"]:
                             try:
-                                await bot.send_message(chat_id, msg, parse_mode="HTML")
+                                await bot.send_message(chat_id, msg, parse_mode="HTML", reply_markup=reply_markup)
                             except Exception as e:
                                 logger.error(f"Failed to notify {chat_id}: {e}")
                 
