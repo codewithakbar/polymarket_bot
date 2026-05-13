@@ -13,6 +13,7 @@ let currentData = [];
 const filtersContainer = document.getElementById('filters');
 const searchInput = document.getElementById('search-input');
 const typeFilter = document.getElementById('type-filter');
+const outcomeFilter = document.getElementById('outcome-filter');
 
 async function fetchData(tab, isAutoRefresh = false) {
     if (!isAutoRefresh) {
@@ -20,12 +21,14 @@ async function fetchData(tab, isAutoRefresh = false) {
         dataContainer.innerHTML = '';
         searchInput.value = '';
         typeFilter.value = 'all';
+        outcomeFilter.value = 'all';
     }
     
     // Show/hide filters
-    if (tab === 'positions' || tab === 'activity') {
+    if (tab === 'positions' || tab === 'activity' || tab === 'my-profile') {
         filtersContainer.style.display = 'flex';
         typeFilter.style.display = tab === 'activity' ? 'block' : 'none';
+        outcomeFilter.style.display = (tab === 'positions' || tab === 'my-profile') ? 'block' : 'none';
     } else {
         filtersContainer.style.display = 'none';
     }
@@ -58,10 +61,18 @@ async function fetchData(tab, isAutoRefresh = false) {
 }
 
 function applyFilters() {
+    let dataToFilter = currentData;
+    if (currentTab === 'my-profile') {
+        // Handle my-profile separately if needed, or just filter its positions
+        // For now, let's just filter the global data container if it's an array
+        if (!Array.isArray(currentData)) return;
+    }
+
     if (!Array.isArray(currentData)) return;
 
     const searchTerm = searchInput.value.toLowerCase();
     const typeTerm = typeFilter.value;
+    const outcomeTerm = outcomeFilter.value;
 
     const filtered = currentData.filter(item => {
         const title = (item.title || item.name || '').toLowerCase();
@@ -70,6 +81,11 @@ function applyFilters() {
         if (currentTab === 'activity') {
             const matchesType = typeTerm === 'all' || item.side === typeTerm;
             return matchesSearch && matchesType;
+        }
+        
+        if (currentTab === 'positions') {
+            const matchesOutcome = outcomeTerm === 'all' || item.outcome === outcomeTerm;
+            return matchesSearch && matchesOutcome;
         }
         
         return matchesSearch;
@@ -81,6 +97,7 @@ function applyFilters() {
 
 searchInput.addEventListener('input', applyFilters);
 typeFilter.addEventListener('change', applyFilters);
+outcomeFilter.addEventListener('change', applyFilters);
 
 function renderMyProfile(wallet, portfolioValue, positions, activity) {
     // ... (rest of the function stays same)
