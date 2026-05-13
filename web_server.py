@@ -29,8 +29,9 @@ async def api_activity(wallet: str = TARGET_WALLET):
 
 @app.get("/api/my-profile")
 async def api_my_profile():
-    # Return wallet info for frontend to use
-    return {"wallet": MY_WALLET}
+    # Fetch portfolio value as well
+    val_data = await get_portfolio_value(MY_WALLET)
+    return {"wallet": MY_WALLET, "portfolioValue": val_data.get("value", "0")}
 
 @app.get("/api/leaderboard")
 async def api_leaderboard():

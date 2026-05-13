@@ -59,6 +59,21 @@ async def get_leaderboard(limit: int = 10, period: str = "week") -> List[Dict[st
 
 import html
 
+async def get_portfolio_value(wallet: str) -> Dict[str, Any]:
+    """
+    Fetch total portfolio value for the user.
+    """
+    url = f"{POLYMARKET_API_BASE}/value"
+    params = {"user": wallet}
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"Error fetching portfolio value: {e}")
+            return {"value": "0"}
+
 def format_position(pos: Dict[str, Any]) -> str:
     """
     Format a single position for display.

@@ -7,37 +7,51 @@ const navBtns = document.querySelectorAll('.nav-btn');
 
 let currentTab = 'positions';
 
-async function fetchData(tab) {
-    loader.style.display = 'block';
-    dataContainer.innerHTML = '';
+let refreshInterval;
+
+async function fetchData(tab, isAutoRefresh = false) {
+    if (!isAutoRefresh) {
+        loader.style.display = 'block';
+        dataContainer.innerHTML = '';
+    }
     
     try {
         if (tab === 'my-profile') {
             const profileRes = await fetch('/api/my-profile');
-            const { wallet } = await profileRes.json();
+            const { wallet, portfolioValue } = await profileRes.json();
             
             const [posData, actData] = await Promise.all([
                 fetch(`/api/positions?wallet=${wallet}`).then(r => r.json()),
                 fetch(`/api/activity?wallet=${wallet}`).then(r => r.json())
             ]);
             
-            renderMyProfile(wallet, posData, actData);
+            renderMyProfile(wallet, portfolioValue, posData, actData);
         } else {
             const response = await fetch(`/api/${tab}`);
             const data = await response.json();
             renderData(tab, data);
         }
     } catch (error) {
-        dataContainer.innerHTML = `<p style="color: red; text-align: center;">Error loading data</p>`;
+        if (!isAutoRefresh) {
+            dataContainer.innerHTML = `<p style="color: red; text-align: center;">Error loading data</p>`;
+        }
     } finally {
-        loader.style.display = 'none';
+        if (!isAutoRefresh) loader.style.display = 'none';
     }
 }
 
-function renderMyProfile(wallet, positions, activity) {
+function renderMyProfile(wallet, portfolioValue, positions, activity) {
+    dataContainer.innerHTML = ''; // Clear for refresh
+    
     const header = document.createElement('div');
     header.style.marginBottom = '20px';
-    header.innerHTML = `<h2 style="font-size: 18px;">Mening hamyonim:</h2><code style="font-size: 12px; color: var(--accent-blue)">${wallet}</code>`;
+    header.innerHTML = `
+        <div class="card" style="background: linear-gradient(135deg, #1e293b, #0f172a); border: none;">
+            <div style="color: var(--text-secondary); font-size: 14px;">Umumiy balans (Portfolio Value)</div>
+            <div style="font-size: 32px; font-weight: 700; color: var(--accent-green); margin: 8px 0;">$${parseFloat(portfolioValue).toFixed(2)}</div>
+            <div style="font-size: 12px; color: var(--text-secondary); word-break: break-all;">${wallet}</div>
+        </div>
+    `;
     dataContainer.appendChild(header);
 
     const posTitle = document.createElement('h3');
@@ -132,14 +146,23 @@ function renderData(tab, data) {
     }
 }
 
+function startAutoRefresh() {
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = setInterval(() => {
+        fetchData(currentTab, true);
+    }, 10000); // Har 10 soniyada yangilash
+}
+
 navBtns.forEach(btn => {
     btn.addEventListener('click', () => {
         navBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentTab = btn.dataset.tab;
         fetchData(currentTab);
+        startAutoRefresh();
     });
 });
 
 // Initial fetch
 fetchData('positions');
+startAutoRefresh();
