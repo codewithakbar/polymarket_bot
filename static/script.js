@@ -14,6 +14,7 @@ const filtersContainer = document.getElementById('filters');
 const searchInput = document.getElementById('search-input');
 const typeFilter = document.getElementById('type-filter');
 const outcomeFilter = document.getElementById('outcome-filter');
+const dateFilter = document.getElementById('date-filter');
 
 async function fetchData(tab, isAutoRefresh = false) {
     if (!isAutoRefresh) {
@@ -22,6 +23,7 @@ async function fetchData(tab, isAutoRefresh = false) {
         searchInput.value = '';
         typeFilter.value = 'all';
         outcomeFilter.value = 'all';
+        dateFilter.value = '';
     }
     
     // Show/hide filters
@@ -29,6 +31,7 @@ async function fetchData(tab, isAutoRefresh = false) {
         filtersContainer.style.display = 'flex';
         typeFilter.style.display = tab === 'activity' ? 'block' : 'none';
         outcomeFilter.style.display = (tab === 'positions' || tab === 'my-profile') ? 'block' : 'none';
+        dateFilter.style.display = tab === 'activity' ? 'block' : 'none';
     } else {
         filtersContainer.style.display = 'none';
     }
@@ -73,6 +76,7 @@ function applyFilters() {
     const searchTerm = searchInput.value.toLowerCase();
     const typeTerm = typeFilter.value;
     const outcomeTerm = outcomeFilter.value;
+    const dateTerm = dateFilter.value; // YYYY-MM-DD
 
     const filtered = currentData.filter(item => {
         const title = (item.title || item.name || '').toLowerCase();
@@ -80,7 +84,12 @@ function applyFilters() {
         
         if (currentTab === 'activity') {
             const matchesType = typeTerm === 'all' || item.side === typeTerm;
-            return matchesSearch && matchesType;
+            let matchesDate = true;
+            if (dateTerm) {
+                const itemDate = new Date(item.timestamp * 1000).toISOString().split('T')[0];
+                matchesDate = itemDate === dateTerm;
+            }
+            return matchesSearch && matchesType && matchesDate;
         }
         
         if (currentTab === 'positions') {
@@ -98,6 +107,7 @@ function applyFilters() {
 searchInput.addEventListener('input', applyFilters);
 typeFilter.addEventListener('change', applyFilters);
 outcomeFilter.addEventListener('change', applyFilters);
+dateFilter.addEventListener('change', applyFilters);
 
 function renderMyProfile(wallet, portfolioValue, positions, activity) {
     // ... (rest of the function stays same)
