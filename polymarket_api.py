@@ -92,20 +92,36 @@ def format_activity(act: Dict[str, Any]) -> str:
         timestamp = str(timestamp_raw)
     
     if type_ == "trade":
-        market = html.escape(act.get("title") or act.get("name") or "Market")
-        side = act.get("side", "").upper()
+        market = html.escape(act.get("title") or act.get("name") or "Bozor")
+        side = act.get("side", "").upper() # BUY/SELL
         size = act.get("size", "0")
         price = act.get("price", "0")
         outcome = html.escape(act.get("outcome", ""))
         usdc_size = act.get("usdcSize", "0")
         
-        emoji = "🟢" if side == "BUY" else "🔴"
+        if side == "BUY":
+            emoji = "🟢"
+            action_text = "SOTIB OLINDI"
+        else:
+            emoji = "🔴"
+            action_text = "SOTILDI"
+            
         return (
-            f"{emoji} <b>{side} TRADE</b>\n"
+            f"{emoji} <b>{action_text}</b>\n"
             f"📍 <b>Bozor:</b> {market}\n"
             f"✅ <b>Natija:</b> {outcome}\n"
             f"📊 <b>Hajm:</b> {size} dona (${usdc_size})\n"
             f"💵 <b>Narx:</b> ${float(price):.4f}\n"
+            f"🕒 <b>Vaqt:</b> {timestamp}\n"
+        )
+    
+    if type_ == "redemption":
+        market = html.escape(act.get("title") or "Bozor")
+        amount = act.get("amount", "0")
+        return (
+            f"💰 <b>FOYDA YECHIB OLINDI (Redemption)</b>\n"
+            f"📍 <b>Bozor:</b> {market}\n"
+            f"💵 <b>Miqdor:</b> ${amount}\n"
             f"🕒 <b>Vaqt:</b> {timestamp}\n"
         )
     
