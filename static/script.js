@@ -43,13 +43,28 @@ async function fetchData(tab, isAutoRefresh = false) {
 function renderMyProfile(wallet, portfolioValue, positions, activity) {
     dataContainer.innerHTML = ''; // Clear for refresh
     
+    // Calculate total position value
+    const posValue = positions.reduce((sum, pos) => sum + (parseFloat(pos.currentValue) || 0), 0);
+    const cashValue = Math.max(0, parseFloat(portfolioValue) - posValue);
+
     const header = document.createElement('div');
     header.style.marginBottom = '20px';
     header.innerHTML = `
-        <div class="card" style="background: linear-gradient(135deg, #1e293b, #0f172a); border: none;">
-            <div style="color: var(--text-secondary); font-size: 14px;">Umumiy balans (Portfolio Value)</div>
-            <div style="font-size: 32px; font-weight: 700; color: var(--accent-green); margin: 8px 0;">$${parseFloat(portfolioValue).toFixed(2)}</div>
-            <div style="font-size: 12px; color: var(--text-secondary); word-break: break-all;">${wallet}</div>
+        <div class="card" style="background: linear-gradient(135deg, #1e293b, #0f172a); border: none; padding: 20px;">
+            <div style="color: var(--text-secondary); font-size: 14px;">Umumiy hisob (Portfolio Value)</div>
+            <div style="font-size: 32px; font-weight: 700; color: var(--accent-green); margin: 8px 0;">$${parseFloat(portfolioValue).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            
+            <div style="display: flex; gap: 20px; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <div>
+                    <div style="color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">Pozitsiyalar</div>
+                    <div style="font-weight: 600; font-size: 16px;">$${posValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                </div>
+                <div>
+                    <div style="color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">Naqd pul (Cash)</div>
+                    <div style="font-weight: 600; font-size: 16px;">$${cashValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                </div>
+            </div>
+            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 15px; word-break: break-all; opacity: 0.7;">${wallet}</div>
         </div>
     `;
     dataContainer.appendChild(header);
@@ -77,6 +92,11 @@ function renderData(tab, data) {
         data.forEach(pos => {
             const card = document.createElement('div');
             card.className = 'card';
+            const cashPnl = parseFloat(pos.cashPnl) || 0;
+            const percentPnl = parseFloat(pos.percentPnl) || 0;
+            const pnlColor = cashPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+            const pnlSign = cashPnl >= 0 ? '+' : '';
+
             card.innerHTML = `
                 <div class="card-header">
                     <div class="card-title">${pos.title}</div>
@@ -85,15 +105,19 @@ function renderData(tab, data) {
                 <div class="card-body">
                     <div class="info-item">
                         <label>Size</label>
-                        <span>${pos.size}</span>
+                        <span>${parseFloat(pos.size).toLocaleString()}</span>
                     </div>
                     <div class="info-item">
-                        <label>Avg Price</label>
-                        <span>$${parseFloat(pos.avgPrice).toFixed(4)}</span>
+                        <label>Current Value</label>
+                        <span>$${parseFloat(pos.currentValue).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Avg / Current Price</label>
+                        <span>$${parseFloat(pos.avgPrice).toFixed(3)} / $${parseFloat(pos.curPrice).toFixed(3)}</span>
                     </div>
                     <div class="info-item">
                         <label>P&L</label>
-                        <span style="color: ${parseFloat(pos.pnl) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">${pos.pnl}</span>
+                        <span style="color: ${pnlColor}">${pnlSign}$${cashPnl.toLocaleString(undefined, {minimumFractionDigits: 2})} (${pnlSign}${percentPnl.toFixed(2)}%)</span>
                     </div>
                 </div>
             `;
