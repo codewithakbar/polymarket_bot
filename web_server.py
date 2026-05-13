@@ -6,7 +6,7 @@ import uvicorn
 import os
 
 from .polymarket_api import get_user_positions, get_user_activity, get_leaderboard
-from .config import TARGET_WALLET
+from .config import TARGET_WALLET, MY_WALLET
 
 app = FastAPI()
 
@@ -26,6 +26,11 @@ async def api_positions(wallet: str = TARGET_WALLET):
 @app.get("/api/activity")
 async def api_activity(wallet: str = TARGET_WALLET):
     return await get_user_activity(wallet)
+
+@app.get("/api/my-profile")
+async def api_my_profile():
+    # Return wallet info for frontend to use
+    return {"wallet": MY_WALLET}
 
 @app.get("/api/leaderboard")
 async def api_leaderboard():

@@ -12,14 +12,45 @@ async function fetchData(tab) {
     dataContainer.innerHTML = '';
     
     try {
-        const response = await fetch(`/api/${tab}`);
-        const data = await response.json();
-        renderData(tab, data);
+        if (tab === 'my-profile') {
+            const profileRes = await fetch('/api/my-profile');
+            const { wallet } = await profileRes.json();
+            
+            const [posData, actData] = await Promise.all([
+                fetch(`/api/positions?wallet=${wallet}`).then(r => r.json()),
+                fetch(`/api/activity?wallet=${wallet}`).then(r => r.json())
+            ]);
+            
+            renderMyProfile(wallet, posData, actData);
+        } else {
+            const response = await fetch(`/api/${tab}`);
+            const data = await response.json();
+            renderData(tab, data);
+        }
     } catch (error) {
         dataContainer.innerHTML = `<p style="color: red; text-align: center;">Error loading data</p>`;
     } finally {
         loader.style.display = 'none';
     }
+}
+
+function renderMyProfile(wallet, positions, activity) {
+    const header = document.createElement('div');
+    header.style.marginBottom = '20px';
+    header.innerHTML = `<h2 style="font-size: 18px;">Mening hamyonim:</h2><code style="font-size: 12px; color: var(--accent-blue)">${wallet}</code>`;
+    dataContainer.appendChild(header);
+
+    const posTitle = document.createElement('h3');
+    posTitle.innerText = 'Pozitsiyalar';
+    posTitle.style.margin = '20px 0 10px';
+    dataContainer.appendChild(posTitle);
+    renderData('positions', positions);
+
+    const actTitle = document.createElement('h3');
+    actTitle.innerText = 'Oxirgi faollik';
+    actTitle.style.margin = '30px 0 10px';
+    dataContainer.appendChild(actTitle);
+    renderData('activity', activity);
 }
 
 function renderData(tab, data) {
