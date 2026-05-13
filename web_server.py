@@ -31,7 +31,14 @@ async def api_activity(wallet: str = TARGET_WALLET):
 async def api_my_profile():
     # Fetch portfolio value as well
     val_data = await get_portfolio_value(MY_WALLET)
-    return {"wallet": MY_WALLET, "portfolioValue": val_data.get("value", "0")}
+    # val_data is a list like [{"user": "...", "value": 123.45}]
+    portfolio_value = "0"
+    if isinstance(val_data, list) and len(val_data) > 0:
+        portfolio_value = val_data[0].get("value", "0")
+    elif isinstance(val_data, dict):
+        portfolio_value = val_data.get("value", "0")
+        
+    return {"wallet": MY_WALLET, "portfolioValue": portfolio_value}
 
 @app.get("/api/leaderboard")
 async def api_leaderboard():
