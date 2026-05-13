@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
 
-from .polymarket_api import get_user_positions, get_user_activity, get_leaderboard
+from .polymarket_api import get_user_positions, get_user_activity, get_leaderboard, get_portfolio_value
 from .config import TARGET_WALLET, MY_WALLET
 
 app = FastAPI()
