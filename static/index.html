@@ -23,6 +23,14 @@
         </nav>
 
         <main id="content">
+            <div id="filters" class="filters-container" style="display: none;">
+                <input type="text" id="search-input" placeholder="Qidirish (bozor nomi)..." class="filter-input">
+                <select id="type-filter" class="filter-input" style="display: none;">
+                    <option value="all">Barchasi</option>
+                    <option value="BUY">Sotib olingan</option>
+                    <option value="SELL">Sotilgan</option>
+                </select>
+            </div>
             <div id="loader" class="loader"></div>
             <div id="data-container"></div>
         </main>

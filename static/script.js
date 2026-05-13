@@ -9,12 +9,27 @@ let currentTab = 'positions';
 
 let refreshInterval;
 
+let currentData = [];
+const filtersContainer = document.getElementById('filters');
+const searchInput = document.getElementById('search-input');
+const typeFilter = document.getElementById('type-filter');
+
 async function fetchData(tab, isAutoRefresh = false) {
     if (!isAutoRefresh) {
         loader.style.display = 'block';
         dataContainer.innerHTML = '';
+        searchInput.value = '';
+        typeFilter.value = 'all';
     }
     
+    // Show/hide filters
+    if (tab === 'positions' || tab === 'activity') {
+        filtersContainer.style.display = 'flex';
+        typeFilter.style.display = tab === 'activity' ? 'block' : 'none';
+    } else {
+        filtersContainer.style.display = 'none';
+    }
+
     try {
         if (tab === 'my-profile') {
             const profileRes = await fetch('/api/my-profile');
@@ -25,11 +40,13 @@ async function fetchData(tab, isAutoRefresh = false) {
                 fetch(`/api/activity?wallet=${wallet}`).then(r => r.json())
             ]);
             
+            currentData = { wallet, portfolioValue, positions: posData, activity: actData };
             renderMyProfile(wallet, portfolioValue, posData, actData);
         } else {
             const response = await fetch(`/api/${tab}`);
             const data = await response.json();
-            renderData(tab, data);
+            currentData = data;
+            applyFilters();
         }
     } catch (error) {
         if (!isAutoRefresh) {
@@ -40,7 +57,33 @@ async function fetchData(tab, isAutoRefresh = false) {
     }
 }
 
+function applyFilters() {
+    if (!Array.isArray(currentData)) return;
+
+    const searchTerm = searchInput.value.toLowerCase();
+    const typeTerm = typeFilter.value;
+
+    const filtered = currentData.filter(item => {
+        const title = (item.title || item.name || '').toLowerCase();
+        const matchesSearch = title.includes(searchTerm);
+        
+        if (currentTab === 'activity') {
+            const matchesType = typeTerm === 'all' || item.side === typeTerm;
+            return matchesSearch && matchesType;
+        }
+        
+        return matchesSearch;
+    });
+
+    dataContainer.innerHTML = '';
+    renderData(currentTab, filtered);
+}
+
+searchInput.addEventListener('input', applyFilters);
+typeFilter.addEventListener('change', applyFilters);
+
 function renderMyProfile(wallet, portfolioValue, positions, activity) {
+    // ... (rest of the function stays same)
     dataContainer.innerHTML = ''; // Clear for refresh
     
     // Calculate total position value
